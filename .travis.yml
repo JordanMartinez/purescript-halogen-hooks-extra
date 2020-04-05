@@ -1,0 +1,23 @@
+dist: xenial
+language: minimal
+  # Use `nvm` to install latest version of NodeJS
+
+# Unless we specify "sudo: false", build runs in VM, not container
+
+# Limit the number of commits it will clone
+git:
+  depth: 3
+
+before_install:
+  - nvm install node
+  - npm i -g npm
+
+install:
+  - npm i -g purescript@0.13.6 spago@0.14.0
+
+script:
+  - spago build
+
+cache:
+  directories:
+    - .spago
