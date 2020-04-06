@@ -3,10 +3,7 @@ module Example.Hooks.Extra.Hooks.UseEvent
   , subscribeTo
   , subscribeTo'
   , UseEvent
-  , EventEqFn
   , EventProps
-  , CapturesWith_TypeSignature
-  , UseTickEffect_TypeSignature
   , EventApi
   )
   where
@@ -17,33 +14,22 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
-import Halogen.Hooks (HookM, Hooked, MemoValues, UseEffect, UseState, Hook, useState)
+import Halogen.Hooks (Hook, HookM, UseEffect, UseState, useState)
 import Halogen.Hooks as Hooks
+import Halogen.Hooks.Extra.TypeSignatures (CapturesWith, CapturesWithEqFn)
 
 newtype UseEvent a hooks = UseEvent (UseState (Maybe a) hooks)
 
 derive instance newtypeUseEvent :: Newtype (UseEvent a hooks) _
 
-type UseTickEffect_TypeSignature slots output m =
-  HookM slots output m (Maybe (HookM slots output m Unit))
-  -> (forall hooks. Hooked slots output m hooks (UseEffect hooks) Unit)
-
-type CapturesWith_TypeSignature slots output m a =
-  EventEqFn a
-    -> (MemoValues -> UseTickEffect_TypeSignature slots output m)
-    -> UseTickEffect_TypeSignature slots output m
-
-type EventEqFn a =
-  { state :: Maybe a } -> { state :: Maybe a } -> Boolean
-
-type EventProps slots output m a =
-  { capturesWith :: CapturesWith_TypeSignature slots output m a
-  , subscribe :: (a -> HookM slots output m Unit) -> HookM slots output m Unit
-  }
-
 type EventApi slots output m a =
   { push :: a -> HookM slots output m Unit
   , props :: EventProps slots output m a
+  }
+
+type EventProps slots output m a =
+  { capturesWith :: CapturesWith slots output m (state :: Maybe a)
+  , subscribe :: (a -> HookM slots output m Unit) -> HookM slots output m Unit
   }
 
 -- | Allows you to "push" events that occur inside a hook
@@ -112,7 +98,7 @@ subscribeTo props cb =
 -- | Via this function, you would write this...
 -- | ```
 -- | someLib <- useSomLibHook
--- | let eqFn = \l r => l.someValue == r.someValue
+-- | let eqFn = \l r -> l.someValue == r.someValue
 -- | subscribeTo' someLib.onSomeEvent eqFn \string -> do
 -- |   Hooks.put stateToken ("Event occurred: " <> string)
 -- | ```
@@ -128,7 +114,7 @@ subscribeTo props cb =
 subscribeTo'
   :: forall a m output slots
    . EventProps slots output m a
-  -> EventEqFn a
+  -> CapturesWithEqFn (state :: Maybe a)
   -> (a -> HookM slots output m Unit)
   -> Hook slots output m UseEffect Unit
 subscribeTo' props eqFn cb =
