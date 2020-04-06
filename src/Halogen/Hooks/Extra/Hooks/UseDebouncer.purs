@@ -29,6 +29,31 @@ type Debouncer =
   , fiber :: Fiber Unit
   }
 
+-- | A hook that, once the given time period ends, will run an action using
+-- | the last value written. Once the initial write occurs, a timer is set
+-- | and begins counting down. If a new write occurs before that timer ends,
+-- | the timer restarts. When the timer ends, the last value that was written
+-- | will be passed into the handler.
+-- |
+-- | ## Example Usage
+-- |
+-- | The below example shows how to update the label with the value the
+-- | user inputted after there have been 500ms of no user input.
+-- |
+-- | ```
+-- | myComponent = Hooks.component \_ -> Hooks.do
+-- |   label /\ tLabel <- useState ""
+-- |   makeNewSearchFor <- useDebouncer (Milliseconds 500.0) \finalValue -> do
+-- |      Hooks.put tLabel finalValue
+-- |
+-- |   Hooks.pure
+-- |    HH.div_
+-- |      [ HH.h1_
+-- |        [ HH.text $ "Label text is: " <> label ]
+-- |      , HH.input
+-- |        [ HP.onValueInput \str -> Just (makeNewSearchFor str) ]
+-- |      ]
+-- | ```
 useDebouncer
   :: forall slots output m a
    . MonadAff m
