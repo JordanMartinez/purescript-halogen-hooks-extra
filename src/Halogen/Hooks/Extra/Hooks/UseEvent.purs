@@ -33,11 +33,10 @@ type EventProps slots output m a =
   }
 
 -- | Allows you to "push" events that occur inside a hook
--- | to outside of the hook, so that some end-user
--- | can 1) handle those events when they occur while 2) having
--- | full access to the API exposed to the hook in its returned value:
+-- | to a single handler outside of the hook. This allows the end user
+-- | to use the full API returned by the hook when handling the event.
 -- | ```
--- | -- in your custom Hook code...
+-- | -- in the custom Hook code...
 -- | onSomeEvent <- useEvent
 -- |
 -- | -- somewhere in your HookM code
@@ -47,7 +46,7 @@ type EventProps slots output m a =
 -- |   { onSomeEvent: onSomeEvent.props }
 -- |
 -- | --------------
--- | -- in end-user code
+-- | -- in end user Hook code
 -- |
 -- | someLib <- useSomeLibHook
 -- | subscribeTo someLib.onSomeEvent \string -> do
