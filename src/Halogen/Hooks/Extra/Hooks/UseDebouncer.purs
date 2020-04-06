@@ -1,4 +1,4 @@
-module Example.Hooks.Extra.Hooks.UseDebouncer
+module Halogen.Hooks.Extra.Hooks.UseDebouncer
   ( useDebouncer
   , UseDebouncer
   )

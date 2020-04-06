@@ -1,4 +1,4 @@
-module Example.Hooks.Extra.Hooks.UseEvent
+module Halogen.Hooks.Extra.Hooks.UseEvent
   ( useEvent
   , subscribeTo
   , subscribeTo'
