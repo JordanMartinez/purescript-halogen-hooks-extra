@@ -14,21 +14,32 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
-import Halogen.Hooks (Hook, HookM, UseEffect, UseState, useState)
+import Halogen.Hooks (Hook, HookM, MemoValues, UseEffect, UseState, useState)
 import Halogen.Hooks as Hooks
-import Halogen.Hooks.Extra.TypeSignatures (CapturesWith, CapturesWithEqFn)
 
 newtype UseEvent a hooks = UseEvent (UseState (Maybe a) hooks)
 
 derive instance newtypeUseEvent :: Newtype (UseEvent a hooks) _
 
+-- | Authors of hooks should use `push` to push events into the handler.
+-- | They don't return `push` in their custom hook, but instead return
+-- | `props`. The end-user will use `props` as an argument to `subscribeTo`.
 type EventApi slots output m a =
   { push :: a -> HookM slots output m Unit
   , props :: EventProps slots output m a
   }
 
+-- | Pass a value of this type into `subscribeTo` to handle events that
+-- | another hook emits internally.
 type EventProps slots output m a =
-  { capturesWith :: CapturesWith slots output m (state :: Maybe a)
+  { capturesWith ::
+       ( { state :: Maybe a } -> { state :: Maybe a } -> Boolean)
+      -> ( MemoValues
+        -> HookM slots output m (Maybe (HookM slots output m Unit))
+        -> Hook slots output m UseEffect Unit
+         )
+      -> HookM slots output m (Maybe (HookM slots output m Unit))
+      -> Hook slots output m UseEffect Unit
   , subscribe :: (a -> HookM slots output m Unit) -> HookM slots output m Unit
   }
 
@@ -113,7 +124,7 @@ subscribeTo props cb =
 subscribeTo'
   :: forall a m output slots
    . EventProps slots output m a
-  -> CapturesWithEqFn (state :: Maybe a)
+  -> ({ state :: Maybe a } -> { state :: Maybe a } -> Boolean)
   -> (a -> HookM slots output m Unit)
   -> Hook slots output m UseEffect Unit
 subscribeTo' props eqFn cb =
