@@ -12,7 +12,6 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
-import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
@@ -68,8 +67,9 @@ useEvent = Hooks.wrap Hooks.do
 
 subscribeTo
   :: forall slots output m a
-   . Ref (Maybe (a -> HookM slots output m Unit))
+   . MonadEffect m
+  => Ref (Maybe (a -> HookM slots output m Unit))
   -> (a -> HookM slots output m Unit)
-  -> Effect Unit
+  -> HookM slots output m Unit
 subscribeTo callbackRef handler =
   liftEffect $ Ref.write (Just handler) callbackRef
