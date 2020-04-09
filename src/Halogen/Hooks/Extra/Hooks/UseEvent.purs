@@ -1,5 +1,6 @@
 module Halogen.Hooks.Extra.Hooks.UseEvent
   ( useEvent
+  , subscribeTo
   , UseEvent
   , EventApi
   )
@@ -11,6 +12,7 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
+import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Ref (Ref)
 import Effect.Ref as Ref
@@ -47,8 +49,8 @@ type EventApi slots output m a =
 -- |
 -- | someLib <- useSomeLibHook
 -- | useLifecycleEffect do
--- |   let callback = \string -> Hooks.raise ("Event occurred: " <> string)
--- |   liftEffect $ Ref.write (Just callback) someLib.onSomeEvent.callbackRef
+-- |   subscribeTo someLib.onSomeEvent \string -> do
+-- |     Hooks.raise ("Event occurred: " <> string)
 -- | ```
 useEvent
   :: forall output m slots a
@@ -63,3 +65,11 @@ useEvent = Hooks.wrap Hooks.do
         for_ mbCallback \callback -> callback value
     , callbackRef: tRef
     }
+
+subscribeTo
+  :: forall slots output m a
+   . Ref (Maybe (a -> HookM slots output m Unit))
+  -> (a -> HookM slots output m Unit)
+  -> Effect Unit
+subscribeTo callbackRef handler =
+  liftEffect $ Ref.write (Just handler) callbackRef
