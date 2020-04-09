@@ -1,9 +1,6 @@
 module Halogen.Hooks.Extra.Hooks.UseEvent
   ( useEvent
-  , subscribeTo
-  , subscribeTo'
   , UseEvent
-  , EventProps
   , EventApi
   )
   where
@@ -14,33 +11,22 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype)
 import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
-import Halogen.Hooks (Hook, HookM, MemoValues, UseEffect, UseState, useState)
+import Effect.Class (class MonadEffect, liftEffect)
+import Effect.Ref (Ref)
+import Effect.Ref as Ref
+import Halogen.Hooks (Hook, HookM, UseRef, useRef)
 import Halogen.Hooks as Hooks
 
-newtype UseEvent a hooks = UseEvent (UseState (Maybe a) hooks)
+newtype UseEvent slots output m a hooks = UseEvent (UseRef (Maybe (a -> HookM slots output m Unit)) hooks)
 
-derive instance newtypeUseEvent :: Newtype (UseEvent a hooks) _
+derive instance newtypeUseEvent :: Newtype (UseEvent slots output m a hooks) _
 
 -- | Authors of hooks should use `push` to push events into the handler.
 -- | They don't return `push` in their custom hook, but instead return
 -- | `props`. The end-user will use `props` as an argument to `subscribeTo`.
 type EventApi slots output m a =
   { push :: a -> HookM slots output m Unit
-  , props :: EventProps slots output m a
-  }
-
--- | Pass a value of this type into `subscribeTo` to handle events that
--- | another hook emits internally.
-type EventProps slots output m a =
-  { capturesWith ::
-       ( { state :: Maybe a } -> { state :: Maybe a } -> Boolean)
-      -> ( MemoValues
-        -> HookM slots output m (Maybe (HookM slots output m Unit))
-        -> Hook slots output m UseEffect Unit
-         )
-      -> HookM slots output m (Maybe (HookM slots output m Unit))
-      -> Hook slots output m UseEffect Unit
-  , subscribe :: (a -> HookM slots output m Unit) -> HookM slots output m Unit
+  , callbackRef :: Ref (Maybe (a -> HookM slots output m Unit))
   }
 
 -- | Allows you to "push" events that occur inside a hook
@@ -54,80 +40,26 @@ type EventProps slots output m a =
 -- |   onSomeEvent.push "user clicked foo"
 -- |
 -- | Hooks.pure
--- |   { onSomeEvent: onSomeEvent.props }
+-- |   { onSomeEvent: onSomeEvent.callbackRef }
 -- |
 -- | --------------
 -- | -- in end user Hook code
 -- |
 -- | someLib <- useSomeLibHook
--- | subscribeTo someLib.onSomeEvent \string -> do
--- |   Hooks.raise ("Event occurred: " <> string)
+-- | useLifecycleEffect do
+-- |   let callback = \string -> Hooks.raise ("Event occurred: " <> string)
+-- |   liftEffect $ Ref.write (Just callback) someLib.onSomeEvent.callbackRef
 -- | ```
 useEvent
   :: forall output m slots a
-   . Hook slots output m (UseEvent a) (EventApi slots output m a)
+   . MonadEffect m
+  => Hook slots output m (UseEvent slots output m a) (EventApi slots output m a)
 useEvent = Hooks.wrap Hooks.do
-  state /\ tState <- useState Nothing
+  _ /\ tRef <- useRef Nothing
 
-  Hooks.pure { push: \value -> Hooks.put tState (Just value)
-             , props: { capturesWith: \eqFn -> Hooks.capturesWith eqFn { state }
-                      , subscribe: \cb -> do
-                          state' <- Hooks.get tState
-                          for_ state' cb
-                          Hooks.put tState Nothing
-                      }
-             }
-
--- | Long story short, it cleans up what you would otherwise write when
--- | subscribing to events that a hook emits.
--- | Via this function, you would write this...
--- | ```
--- | someLib <- useSomLibHook
--- | subscribeTo someLib.onSomeEvent \string -> do
--- |   Hooks.put stateToken ("Event occurred: " <> string)
--- | ```
--- | ... instead of this ...
--- | ```
--- | someLib <- useSomLibHook
--- | someLib.onSomeEvent.capturesWith (==) Hooks.useTickEffect do
--- |   someLib.onSomeEvent.subscribe \string -> do
--- |      Hooks.put stateToken ("Event occurred: " <> string)
--- |   pure Nothing
--- | ```
-subscribeTo
-  :: forall slots output m a
-   . Eq a
-  => EventProps slots output m a
-  -> (a -> HookM slots output m Unit)
-  -> Hook slots output m UseEffect Unit
-subscribeTo props cb =
-  subscribeTo' props (==) cb
-
--- | Long story short, it cleans up what you would otherwise write when
--- | subscribing to events that a hook emits.
--- | Via this function, you would write this...
--- | ```
--- | someLib <- useSomLibHook
--- | let eqFn = \l r -> l.someValue == r.someValue
--- | subscribeTo' someLib.onSomeEvent eqFn \string -> do
--- |   Hooks.put stateToken ("Event occurred: " <> string)
--- | ```
--- | ... instead of this ...
--- | ```
--- | someLib <- useSomLibHook
--- | let eqFn = \l r => l.someValue == r.someValue
--- | someLib.onSomeEvent.capturesWith eqFn Hooks.useTickEffect do
--- |   someLib.onSomeEvent.subscribe \string -> do
--- |      Hooks.put stateToken ("Event occurred: " <> string)
--- |   pure Nothing
--- | ```
-subscribeTo'
-  :: forall a m output slots
-   . EventProps slots output m a
-  -> ({ state :: Maybe a } -> { state :: Maybe a } -> Boolean)
-  -> (a -> HookM slots output m Unit)
-  -> Hook slots output m UseEffect Unit
-subscribeTo' props eqFn cb =
-  props.capturesWith eqFn Hooks.useTickEffect do
-    props.subscribe cb
-    pure Nothing
+  Hooks.pure
+    { push: \value -> do
+        mbCallback <- liftEffect $ Ref.read tRef
+        for_ mbCallback \callback -> callback value
+    , callbackRef: tRef
+    }
