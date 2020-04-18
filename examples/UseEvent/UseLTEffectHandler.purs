@@ -31,6 +31,10 @@ component = Hooks.component \_ -> Hooks.do
   -- We chose to use the `useTickEffect` version, but we could
   -- could have used the `useLifecycleEffect`
   Hooks.captures { state } useTickEffect do
+
+    -- Note: if we don't need to unsubscribe from anything,
+    -- we can ignore the `unsubscribeCallback`. For example
+    --  changes.setCallback $ Just \_ i -> do
     changes.setCallback $ Just \unsubscribeCallback i -> do
       -- here, we handle the event emitted
       liftEffect $ log $ "New value is: " <> show i
