@@ -13,11 +13,17 @@ import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Ref as Ref
-import Halogen.Hooks (Hook, HookM, UseRef, useRef)
+import Halogen.Hooks (HookM, Hooked, UseRef, useRef)
 import Halogen.Hooks as Hooks
 
 newtype UseEvent slots output m a hooks =
-  UseEvent (UseRef (Maybe (a -> HookM slots output m Unit)) hooks)
+  UseEvent
+    (UseRef (Maybe ( (HookM slots output m Unit -> HookM slots output m Unit)
+                   -> a
+                   -> HookM slots output m Unit
+                   ))
+    (UseRef (Maybe (HookM slots output m Unit))
+    hooks))
 
 derive instance newtypeUseEvent :: Newtype (UseEvent slots output m a hooks) _
 
@@ -29,7 +35,15 @@ derive instance newtypeUseEvent :: Newtype (UseEvent slots output m a hooks) _
 -- | (i.e. `Just newCallback`).
 type EventApi slots output m a =
   { push :: a -> HookM slots output m Unit
-  , setCallback :: Maybe (a -> HookM slots output m Unit) -> HookM slots output m Unit
+  , setCallback
+      :: Maybe (  (  HookM slots output m Unit -- sets up the unsubscribe callback
+                  -> HookM slots output m Unit
+                  )
+               -> a -- pushed value
+               -> HookM slots output m Unit -- code that gets run
+               )
+               -> HookM slots output m Unit
+  , unsubscribe :: HookM slots output m Unit -- unsubscribe code
   }
 
 -- | Allows you to "push" events that occur inside a hook
@@ -61,18 +75,18 @@ type EventApi slots output m a =
 -- |
 -- | ```
 -- | -- in the custom Hook code...
--- | onEvent1 <- useEvent
--- | onEvent2 <- useEvent
+-- | onEvenUnit <- useEvent
+-- | onEvenHookM slots output m <- useEvent
 -- |
 -- | -- somewhere in your HookM code
--- |   onEvent1.push "user clicked foo"
+-- |   onEvenUnit.push "user clicked foo"
 -- |
 -- | -- somewhere else in your HookM code
--- |   onEvent2.push "user clicked foo"
+-- |   onEvenHookM slots output m.push "user clicked foo"
 -- |
 -- | Hooks.pure
--- |   { onEvent1: onEvent1.setCallback
--- |   , onEvent2: onEvent2.setCallback
+-- |   { onEvenUnit: onEvenUnit.setCallback
+-- |   , onEvenHookM slots output m: onEvenHookM slots output m.setCallback
 -- |   }
 -- |
 -- | --------------
@@ -82,13 +96,13 @@ type EventApi slots output m a =
 -- | someLib <- useSomeLibHook
 -- |
 -- | Hooks.captures { state } Hooks.useTickEffect do
--- |   someLib.onEvent1 \string -> do
+-- |   someLib.onEvenUnit \string -> do
 -- |     Hooks.raise ("Event occurred: " <> string)
 -- | Hooks.captures { state, state2 } Hooks.useTickEffect do
 -- |   state1' <- Hooks.get tState1
 -- |   state2' <- Hooks.get tState2
 -- |   when (state1 /= state2) do
--- |     someLib.onEvent2 \string -> do -- something
+-- |     someLib.onEvenHookM slots output m \string -> do -- something
 -- | ```
 -- |
 -- | ## Subscribe on Initialization and Never Unsubscribe (More Performant)
@@ -126,16 +140,46 @@ type EventApi slots output m a =
 -- |       # _otherLibName \x -> do
 -- |           Hooks.put tMyState x
 -- | ```
-useEvent
-  :: forall output m slots a
+useEvent :: forall slots output m a hooks
    . MonadEffect m
-  => Hook slots output m (UseEvent slots output m a) (EventApi slots output m a)
+  => Hooked slots output m hooks (UseEvent slots output m a hooks)
+      { push :: a -> HookM slots output m Unit
+      , setCallback :: Maybe ((HookM slots output m Unit -> HookM slots output m Unit) -> a -> HookM slots output m Unit) -> HookM slots output m Unit
+      , unsubscribe :: HookM slots output m Unit
+      }
 useEvent = Hooks.wrap Hooks.do
-  _ /\ tRef <- useRef Nothing
+  _ /\ unsubscribeRef <- useRef Nothing
+  _ /\ callbackRef <- useRef Nothing
 
-  Hooks.pure
-    { push: \value -> do
-        mbCallback <- liftEffect $ Ref.read tRef
-        for_ mbCallback \callback -> callback value
-    , setCallback: \callback -> liftEffect $ Ref.write callback tRef
-    }
+  let
+    push :: a -> HookM slots output m Unit
+    push value = do
+      mbCallback <- liftEffect $ Ref.read callbackRef
+      let
+        setupUnsubscribeCallback = \unsubscribe' -> do
+          mbUnsubscribe <- liftEffect $ Ref.read unsubscribeRef
+          case mbUnsubscribe of
+            Nothing -> do
+              liftEffect $ Ref.write (Just unsubscribe') unsubscribeRef
+            _ -> do
+              -- no need to store unsubscriber because
+              -- 1. it's already been stored
+              -- 2. no one has subscribed to this yet
+              pure unit
+      for_ mbCallback \callback -> do
+        callback setupUnsubscribeCallback value
+
+    setCallback callback =
+      liftEffect $ Ref.write callback callbackRef
+
+    unsubscribe = do
+      mbUnsubscribe <- liftEffect $ Ref.read unsubscribeRef
+      case mbUnsubscribe of
+        Just unsubscribe' -> do
+          unsubscribe'
+          liftEffect $ Ref.write Nothing unsubscribeRef
+        _ -> do
+          pure unit
+
+
+  Hooks.pure { push, setCallback, unsubscribe }
