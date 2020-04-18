@@ -3,13 +3,16 @@ module Examples.UseEvent.UseLTEffectHandler where
 import Prelude
 
 import Data.Const (Const)
+import Data.Int (even)
 import Data.Maybe (Maybe(..))
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Class.Console (log)
+import Effect.Random (randomInt)
 import Halogen (liftEffect)
 import Halogen as H
 import Halogen.HTML as HH
+import Halogen.HTML.Events as HE
 import Halogen.Hooks (HookM, useState, useTickEffect)
 import Halogen.Hooks as Hooks
 import Halogen.Hooks.Extra.Hooks.UseEvent (useEvent)
@@ -37,7 +40,7 @@ component = Hooks.component \_ -> Hooks.do
     --  changes.setCallback $ Just \_ i -> do
     changes.setCallback $ Just \unsubscribeCallback i -> do
       -- here, we handle the event emitted
-      liftEffect $ log $ "New value is: " <> show i
+      liftEffect $ log $ "Handling event. New value is: " <> show i
 
       -- here, we can set up some resources and do various things
 
@@ -49,4 +52,21 @@ component = Hooks.component \_ -> Hooks.do
     pure $ Just do
       changes.unsubscribe
 
-  Hooks.pure $ HH.text "example"
+  Hooks.pure $
+    HH.div_
+      [ HH.button
+        [ HE.onClick \_ -> Just do
+          i <- liftEffect $ randomInt 0 10
+          pushValueAndTriggerCallback i
+        ]
+        [ HH.text "Click to push a new int value to callback"
+        ]
+      , HH.br_
+      , HH.button
+        [ HE.onClick \_ -> Just do
+          Hooks.modify_ tState \s -> s + 1
+        ]
+        [ HH.text "Click to change the state value, which will unsubscribe \
+                  \prior handler and resubscribe using new handler"
+        ]
+      ]
