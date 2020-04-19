@@ -18,13 +18,16 @@ import Halogen.Hooks as Hooks
 
 newtype UseEvent slots output m a hooks =
   UseEvent
-    (UseRef (Maybe (  ((HookM slots output m (HookM slots output m Unit)) -> HookM slots output m Unit)
-                   -> a -- pushed value
-                   -> HookM slots output m Unit -- code that gets run
-                   )
-            )
-    (UseRef (Maybe (HookM slots output m Unit))
-    hooks))
+    (UseRef
+      { valueCB
+        :: Maybe (  ((HookM slots output m (HookM slots output m Unit)) -> HookM slots output m Unit)
+                 -> a -- pushed value
+                 -> HookM slots output m Unit -- code that gets run
+                 )
+      , unsubscribeCB
+        :: Maybe (HookM slots output m Unit)
+      }
+    hooks)
 
 derive instance newtypeUseEvent :: Newtype (UseEvent slots output m a hooks) _
 
@@ -98,44 +101,44 @@ useEvent :: forall slots output m a hooks
   => Hooked slots output m hooks (UseEvent slots output m a hooks)
       (EventApi slots output m a)
 useEvent = Hooks.wrap Hooks.do
-  _ /\ unsubscribeRef <- useRef Nothing
-  _ /\ callbackRef <- useRef Nothing
+  -- valueCB = the callback to run when a new event is pushed
+  -- unsubscribeCB = callback to run when unsubscribing
+  _ /\ ref <- useRef { valueCB: Nothing, unsubscribeCB: Nothing }
 
   let
     push :: a -> HookM slots output m Unit
     push value = do
-      mbCallback <- liftEffect $ Ref.read callbackRef
+      mbCallback <- liftEffect $ map (_.valueCB) $ Ref.read ref
       for_ mbCallback \callback -> do
         callback setupUnsubscribeCallback value
 
     setupUnsubscribeCallback :: (HookM slots output m (HookM slots output m Unit)) -> HookM slots output m Unit
     setupUnsubscribeCallback subscribeAndReturnUnsubscribeCallback = do
-      mbUnsubscribe <- liftEffect $ Ref.read unsubscribeRef
+      mbUnsubscribe <- liftEffect $ map (_.unsubscribeCB) $ Ref.read ref
       case mbUnsubscribe of
         Nothing -> do
           unsubscribeCode <- subscribeAndReturnUnsubscribeCallback
-          liftEffect $ Ref.write (Just unsubscribeCode) unsubscribeRef
+          liftEffect $ Ref.modify_ (_ { unsubscribeCB = Just unsubscribeCode}) ref
         _ -> do
           -- no need to store unsubscriber because
           -- 1. it's already been stored
           -- 2. no one has subscribed to this yet
           pure unit
 
-    setCallback
-      :: Maybe
-          (  ((HookM slots output m (HookM slots output m Unit)) -> HookM slots output m Unit)
-          -> a -- pushed value
-          -> HookM slots output m Unit -- code that gets run
-          )
-      -> HookM slots output m (HookM slots output m Unit)
+    setCallback :: Maybe
+             (  ((HookM slots output m (HookM slots output m Unit)) -> HookM slots output m Unit)
+             -> a -- pushed value
+             -> HookM slots output m Unit -- code that gets run
+             )
+             -> HookM slots output m (HookM slots output m Unit)
     setCallback callback = do
-      liftEffect $ Ref.write callback callbackRef
+      liftEffect $ Ref.modify_ (_ { valueCB = callback }) ref
       pure do
-        mbUnsubscribe <- liftEffect $ Ref.read unsubscribeRef
+        mbUnsubscribe <- liftEffect $ map (_.unsubscribeCB) $ Ref.read ref
         case mbUnsubscribe of
           Just unsubscribeCode -> do
             unsubscribeCode
-            liftEffect $ Ref.write Nothing unsubscribeRef
+            liftEffect $ Ref.modify_ (_ { unsubscribeCB = Nothing }) ref
           _ -> do
             pure unit
 
