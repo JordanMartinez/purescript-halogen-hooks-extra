@@ -19,23 +19,24 @@ import Halogen.Hooks as Hooks
 
 component :: H.Component HH.HTML (Const Void) Unit Unit Aff
 component = Hooks.component \_ -> Hooks.do
-  _ /\ unsubscribeRef <- useRef Nothing
-  _ /\ callbackRef <- useRef Nothing
+  -- valueCB = the callback to run when a new event is pushed
+  -- unsubscribeCB = callback to run when unsubscribing
+  _ /\ ref <- useRef { valueCB: Nothing, unsubscribeCB: Nothing }
 
   let
     push :: Int -> HookM _ _ Aff Unit
     push value = do
-      mbCallback <- liftEffect $ Ref.read callbackRef
+      mbCallback <- liftEffect $ map (_.valueCB) $ Ref.read ref
       for_ mbCallback \callback -> do
         callback setupUnsubscribeCallback value
 
     setupUnsubscribeCallback :: (HookM _ _ Aff (HookM _ _ Aff Unit)) -> HookM _ _ Aff Unit
     setupUnsubscribeCallback subscribeAndReturnUnsubscribeCallback = do
-      mbUnsubscribe <- liftEffect $ Ref.read unsubscribeRef
+      mbUnsubscribe <- liftEffect $ map (_.unsubscribeCB) $ Ref.read ref
       case mbUnsubscribe of
         Nothing -> do
           unsubscribeCode <- subscribeAndReturnUnsubscribeCallback
-          liftEffect $ Ref.write (Just unsubscribeCode) unsubscribeRef
+          liftEffect $ Ref.modify_ (_ { unsubscribeCB = Just unsubscribeCode}) ref
         _ -> do
           -- no need to store unsubscriber because
           -- 1. it's already been stored
@@ -49,13 +50,13 @@ component = Hooks.component \_ -> Hooks.do
              )
              -> HookM _ _ Aff (HookM _ _ Aff Unit)
     setCallback callback = do
-      liftEffect $ Ref.write callback callbackRef
+      liftEffect $ Ref.modify_ (_ { valueCB = callback }) ref
       pure do
-        mbUnsubscribe <- liftEffect $ Ref.read unsubscribeRef
+        mbUnsubscribe <- liftEffect $ map (_.unsubscribeCB) $ Ref.read ref
         case mbUnsubscribe of
           Just unsubscribeCode -> do
             unsubscribeCode
-            liftEffect $ Ref.write Nothing unsubscribeRef
+            liftEffect $ Ref.modify_ (_ { unsubscribeCB = Nothing }) ref
           _ -> do
             pure unit
 
