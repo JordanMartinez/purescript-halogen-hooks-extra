@@ -31,12 +31,7 @@ newtype UseEvent slots output m a hooks =
 
 derive instance newtypeUseEvent :: Newtype (UseEvent slots output m a hooks) _
 
--- | Use `push` to push events into the handler.
--- | Use `setCallback` to either "subscribe" to events for the first time
--- | (i.e. `Just firstCallback`), "unsubscribe" after subscribing previously
--- | (i.e. `Nothing`), or "unsubscribe" the previous event handler
--- | and "resubscribe" to the same events via a new handler
--- | (i.e. `Just newCallback`).
+-- | For proper usage, see the docs for `useEvent`.
 type EventApi slots output m a =
   { push :: a -> HookM slots output m Unit
   , setCallback
@@ -69,28 +64,33 @@ type EventApi slots output m a =
 -- |   pure { foo: "foo" } -- return value of the hook provided by the library
 -- |
 -- | Hooks.useLifecycleEffect do
--- |   onEvent.setCallback $ Just \unsubscribeCallback string -> do
+-- |   unsubscribe <- onEvent.setCallback $ Just \setupSubscription str -> do
 -- |     -- handle the event
--- |     Hooks.raise ("Event occurred: " <> string)
+-- |     Hooks.raise ("Event occurred: " <> str)
 -- |
--- |     -- Then, set up some resources that later need to be cleaned up
+-- |     setupSubscription do
+-- |       -- Then, set up some resources in this code block
+-- |       -- that need to be cleaned up later
+-- |       liftEffect $ log $ "Setting up resources."
 -- |
--- |     -- now define the code that will run when we 'unsubscribe' later
--- |     unsubscribeCallback do
--- |       -- code we need to run when unsubscribing
--- |       pure unit
+-- |       pure do
+-- |         -- now define the code that will run when we call
+-- |         -- 'unsubscribe' later
+-- |         liftEffect $ log $ "Cleaning up resources."
 -- |
 -- |   pure $ Just do
 -- |     -- unsubscribe to clean up resources
--- |     onEvent.unsubscribe
+-- |     unsubscribe
 -- |
 -- | state /\ tState <- useState 0
 -- |
 -- | -- If we don't need to unsubscribe, just ignore the argument
 -- | Hooks.captures { state } Hooks.useTickEffect do
--- |   -- notice how the first argument is an underscore,
--- |   -- showing that we are ignoring the 'unsubscribeCallback' argument
--- |   someLib.onEvent2 \_ string -> do
+-- |   -- notice two things here. First, we're ignoring the
+-- |   -- 'unsubscribeCallback' argument by using the underscore (i.e. _)
+-- |   -- Second, we're ignoring the returned 'unsubscribe' code by using
+-- |   -- `void`.
+-- |   void $ onEvent \_ string -> do
 -- |     -- handle the event
 -- |     Hooks.raise ("Event occurred: " <> string)
 -- |
