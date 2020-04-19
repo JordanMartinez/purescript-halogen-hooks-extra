@@ -3,32 +3,63 @@ module Examples.UseEvent.UseLTEffectHandler where
 import Prelude
 
 import Data.Const (Const)
-import Data.Int (even)
+import Data.Foldable (for_)
 import Data.Maybe (Maybe(..))
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Class.Console (log)
 import Effect.Random (randomInt)
+import Effect.Ref as Ref
 import Halogen (liftEffect)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
-import Halogen.Hooks (HookM, useState, useTickEffect)
+import Halogen.Hooks (HookM, useState, useTickEffect, useRef)
 import Halogen.Hooks as Hooks
-import Halogen.Hooks.Extra.Hooks.UseEvent (useEvent)
 
 component :: H.Component HH.HTML (Const Void) Unit Unit Aff
 component = Hooks.component \_ -> Hooks.do
-  changes <- useEvent
-
-  state /\ tState <- useState 0
+  _ /\ unsubscribeRef <- useRef Nothing
+  _ /\ callbackRef <- useRef Nothing
 
   let
-    pushValueAndTriggerCallback :: Int -> HookM _ _ Aff Unit
-    pushValueAndTriggerCallback = changes.push
+    push :: Int -> HookM _ _ Aff Unit
+    push value = do
+      mbCallback <- liftEffect $ Ref.read callbackRef
+      for_ mbCallback \callback -> do
+        callback setupUnsubscribeCallback value
 
-  -- at some point in code, we trigger the callback via
-  -- `pushValueAndTriggerCallback`
+    setupUnsubscribeCallback :: (HookM _ _ Aff (HookM _ _ Aff Unit)) -> HookM _ _ Aff Unit
+    setupUnsubscribeCallback subscribeAndReturnUnsubscribeCallback = do
+      mbUnsubscribe <- liftEffect $ Ref.read unsubscribeRef
+      case mbUnsubscribe of
+        Nothing -> do
+          unsubscribeCode <- subscribeAndReturnUnsubscribeCallback
+          liftEffect $ Ref.write (Just unsubscribeCode) unsubscribeRef
+        _ -> do
+          -- no need to store unsubscriber because
+          -- 1. it's already been stored
+          -- 2. no one has subscribed to this yet
+          pure unit
+
+    setCallback :: Maybe
+             (  ((HookM _ _ Aff (HookM _ _ Aff Unit)) -> HookM _ _ Aff Unit)
+             -> Int -- pushed value
+             -> HookM _ _ Aff Unit -- code that gets run
+             )
+             -> HookM _ _ Aff (HookM _ _ Aff Unit)
+    setCallback callback = do
+      liftEffect $ Ref.write callback callbackRef
+      pure do
+        mbUnsubscribe <- liftEffect $ Ref.read unsubscribeRef
+        case mbUnsubscribe of
+          Just unsubscribeCode -> do
+            unsubscribeCode
+            liftEffect $ Ref.write Nothing unsubscribeRef
+          _ -> do
+            pure unit
+
+  state /\ tState <- useState 0
 
   -- Here, we set a callback that will handle the events emitted.
   -- We chose to use the `useTickEffect` version, but we could
@@ -36,28 +67,38 @@ component = Hooks.component \_ -> Hooks.do
   Hooks.captures { state } useTickEffect do
 
     -- Note: if we don't need to unsubscribe from anything,
-    -- we can ignore the `unsubscribeCallback`. For example
-    --  changes.setCallback $ Just \_ i -> do
-    changes.setCallback $ Just \unsubscribeCallback i -> do
+    -- we would write the following
+    --    void $ setCallback $ Just \_ i -> do
+    unsubscribe <- setCallback $ Just \subscribeCallback i -> do
       -- here, we handle the event emitted
       liftEffect $ log $ "Handling event. New value is: " <> show i
 
-      -- here, we can set up some resources and do various things
-
-      -- here, we store the code necessary for unsubscribing
-      unsubscribeCallback do
-        let unsubscribe' = pure unit -- unsubscribe
-        unsubscribe'
+      subscribeCallback do
+        -- here, we can set up some resources and do various things
+        liftEffect $ log $
+          "Setting up resources. You should see this \
+          \message appear on the first run and every time the state value \
+          \changes. However, it should occur only AFTER the unsubscribe \
+          \message appears."
+        pure do
+          -- here, we store the code necessary for unsubscribing
+          liftEffect $ log $
+            "Cleaning up resources. You should see this \
+            \message appear on the last run and every time the state values \
+            \changes. However, it should occur only BEFORE the subscribe \
+            \message appears."
 
     pure $ Just do
-      changes.unsubscribe
+      -- Here, we take the unsubscribe code we specified above
+      -- and run it before the next tick occurs.
+      unsubscribe
 
   Hooks.pure $
     HH.div_
       [ HH.button
         [ HE.onClick \_ -> Just do
           i <- liftEffect $ randomInt 0 10
-          pushValueAndTriggerCallback i
+          push i
         ]
         [ HH.text "Click to push a new int value to callback"
         ]
