@@ -3,63 +3,22 @@ module Examples.UseEvent.UseLTEffectHandler where
 import Prelude
 
 import Data.Const (Const)
-import Data.Foldable (for_)
 import Data.Maybe (Maybe(..))
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Aff)
 import Effect.Class.Console (log)
 import Effect.Random (randomInt)
-import Effect.Ref as Ref
 import Halogen (liftEffect)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
-import Halogen.Hooks (HookM, useState, useTickEffect, useRef)
+import Halogen.Hooks (useState, useTickEffect)
 import Halogen.Hooks as Hooks
+import Halogen.Hooks.Extra.Hooks.UseEvent (useEvent)
 
 component :: H.Component HH.HTML (Const Void) Unit Unit Aff
 component = Hooks.component \_ -> Hooks.do
-  -- valueCB = the callback to run when a new event is pushed
-  -- unsubscribeCB = callback to run when unsubscribing
-  _ /\ ref <- useRef { valueCB: Nothing, unsubscribeCB: Nothing }
-
-  let
-    push :: Int -> HookM _ _ Aff Unit
-    push value = do
-      mbCallback <- liftEffect $ map (_.valueCB) $ Ref.read ref
-      for_ mbCallback \callback -> do
-        callback setupUnsubscribeCallback value
-
-    setupUnsubscribeCallback :: (HookM _ _ Aff (HookM _ _ Aff Unit)) -> HookM _ _ Aff Unit
-    setupUnsubscribeCallback subscribeAndReturnUnsubscribeCallback = do
-      mbUnsubscribe <- liftEffect $ map (_.unsubscribeCB) $ Ref.read ref
-      case mbUnsubscribe of
-        Nothing -> do
-          unsubscribeCode <- subscribeAndReturnUnsubscribeCallback
-          liftEffect $ Ref.modify_ (_ { unsubscribeCB = Just unsubscribeCode}) ref
-        _ -> do
-          -- no need to store unsubscriber because
-          -- 1. it's already been stored
-          -- 2. no one has subscribed to this yet
-          pure unit
-
-    setCallback :: Maybe
-             (  ((HookM _ _ Aff (HookM _ _ Aff Unit)) -> HookM _ _ Aff Unit)
-             -> Int -- pushed value
-             -> HookM _ _ Aff Unit -- code that gets run
-             )
-             -> HookM _ _ Aff (HookM _ _ Aff Unit)
-    setCallback callback = do
-      liftEffect $ Ref.modify_ (_ { valueCB = callback }) ref
-      pure do
-        mbUnsubscribe <- liftEffect $ map (_.unsubscribeCB) $ Ref.read ref
-        case mbUnsubscribe of
-          Just unsubscribeCode -> do
-            unsubscribeCode
-            liftEffect $ Ref.modify_ (_ { unsubscribeCB = Nothing }) ref
-          _ -> do
-            pure unit
-
+  changes <- useEvent
   state /\ tState <- useState 0
 
   -- Here, we set a callback that will handle the events emitted.
@@ -70,7 +29,7 @@ component = Hooks.component \_ -> Hooks.do
     -- Note: if we don't need to unsubscribe from anything,
     -- we would write the following
     --    void $ setCallback $ Just \_ i -> do
-    unsubscribe <- setCallback $ Just \subscribeCallback i -> do
+    unsubscribe <- changes.setCallback $ Just \subscribeCallback i -> do
       -- here, we handle the event emitted
       liftEffect $ log $ "Handling event. New value is: " <> show i
 
@@ -99,7 +58,7 @@ component = Hooks.component \_ -> Hooks.do
       [ HH.button
         [ HE.onClick \_ -> Just do
           i <- liftEffect $ randomInt 0 10
-          push i
+          changes.push i
         ]
         [ HH.text "Click to push a new int value to callback"
         ]
