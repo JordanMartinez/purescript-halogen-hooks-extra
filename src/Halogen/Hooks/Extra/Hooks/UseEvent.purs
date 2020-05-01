@@ -16,31 +16,31 @@ import Effect.Ref as Ref
 import Halogen.Hooks (HookM, Hooked, UseRef, useRef)
 import Halogen.Hooks as Hooks
 
-newtype UseEvent slots output m a hooks =
+newtype UseEvent m a hooks =
   UseEvent
     (UseRef
       { valueCB
-        :: Maybe (  ((HookM slots output m (HookM slots output m Unit)) -> HookM slots output m Unit)
+        :: Maybe (  ((HookM m (HookM m Unit)) -> HookM m Unit)
                  -> a -- pushed value
-                 -> HookM slots output m Unit -- code that gets run
+                 -> HookM m Unit -- code that gets run
                  )
       , unsubscribeCB
-        :: Maybe (HookM slots output m Unit)
+        :: Maybe (HookM m Unit)
       }
     hooks)
 
-derive instance newtypeUseEvent :: Newtype (UseEvent slots output m a hooks) _
+derive instance newtypeUseEvent :: Newtype (UseEvent m a hooks) _
 
 -- | For proper usage, see the docs for `useEvent`.
-type EventApi slots output m a =
-  { push :: a -> HookM slots output m Unit
+type EventApi m a =
+  { push :: a -> HookM m Unit
   , setCallback
       :: Maybe
-           (  ((HookM slots output m (HookM slots output m Unit)) -> HookM slots output m Unit)
+           (  ((HookM m (HookM m Unit)) -> HookM m Unit)
            -> a -- pushed value
-           -> HookM slots output m Unit -- code that gets run
+           -> HookM m Unit -- code that gets run
            )
-           -> HookM slots output m (HookM slots output m Unit)
+           -> HookM m (HookM m Unit)
   }
 
 -- | Allows you to "push" events that occur inside a hook
@@ -96,23 +96,23 @@ type EventApi slots output m a =
 -- |
 -- |   pure Nothing -- no need to unsubscribe here
 -- | ```
-useEvent :: forall slots output m a hooks
+useEvent :: forall m a hooks
    . MonadEffect m
-  => Hooked slots output m hooks (UseEvent slots output m a hooks)
-      (EventApi slots output m a)
+  => Hooked m hooks (UseEvent m a hooks)
+      (EventApi m a)
 useEvent = Hooks.wrap Hooks.do
   -- valueCB = the callback to run when a new event is pushed
   -- unsubscribeCB = callback to run when unsubscribing
   _ /\ ref <- useRef { valueCB: Nothing, unsubscribeCB: Nothing }
 
   let
-    push :: a -> HookM slots output m Unit
+    push :: a -> HookM m Unit
     push value = do
       mbCallback <- liftEffect $ map (_.valueCB) $ Ref.read ref
       for_ mbCallback \callback -> do
         callback setupUnsubscribeCallback value
 
-    setupUnsubscribeCallback :: (HookM slots output m (HookM slots output m Unit)) -> HookM slots output m Unit
+    setupUnsubscribeCallback :: (HookM m (HookM m Unit)) -> HookM m Unit
     setupUnsubscribeCallback subscribeAndReturnUnsubscribeCallback = do
       mbUnsubscribe <- liftEffect $ map (_.unsubscribeCB) $ Ref.read ref
       case mbUnsubscribe of
@@ -126,11 +126,11 @@ useEvent = Hooks.wrap Hooks.do
           pure unit
 
     setCallback :: Maybe
-             (  ((HookM slots output m (HookM slots output m Unit)) -> HookM slots output m Unit)
+             (  ((HookM m (HookM m Unit)) -> HookM m Unit)
              -> a -- pushed value
-             -> HookM slots output m Unit -- code that gets run
+             -> HookM m Unit -- code that gets run
              )
-             -> HookM slots output m (HookM slots output m Unit)
+             -> HookM m (HookM m Unit)
     setCallback callback = do
       liftEffect $ Ref.modify_ (_ { valueCB = callback }) ref
       pure do
