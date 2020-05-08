@@ -1,7 +1,7 @@
 module Halogen.Hooks.Extra.Hooks.UseEvent
   ( useEvent
   , UseEvent
-  , EventApi
+  , UseEventApi
   )
   where
 
@@ -32,7 +32,7 @@ newtype UseEvent m a hooks =
 derive instance newtypeUseEvent :: Newtype (UseEvent m a hooks) _
 
 -- | For proper usage, see the docs for `useEvent`.
-type EventApi m a =
+type UseEventApi m a =
   { push :: a -> HookM m Unit
   , setCallback
       :: Maybe
@@ -132,7 +132,7 @@ type EventApi m a =
 useEvent :: forall m a hooks
    . MonadEffect m
   => Hooked m hooks (UseEvent m a hooks)
-      (EventApi m a)
+      (UseEventApi m a)
 useEvent = Hooks.wrap Hooks.do
   -- valueCB = the callback to run when a new event is pushed
   -- unsubscribeCB = callback to run when unsubscribing
