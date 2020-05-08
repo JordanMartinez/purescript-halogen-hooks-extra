@@ -54,14 +54,15 @@ type EventApi m a =
 -- | -- let's say this is the end-user's Hook code
 -- | onEvent <- useEvent
 -- |
--- | -- Here, we'll inline the code for a hypothetical hook we found. This could
--- | -- be a hook provided by a library or something.
+-- | -- Here, we'll inline the code for a hypothetical hook we found.
+-- | -- This could be a hook provided by a library or something.
 -- | { foo } <- Hooks.do
 -- |
 -- |   -- somewhere in the hypothetical hook, an event occurs
 -- |   onEvent.push "user clicked foo"
 -- |
--- |   pure { foo: "foo" } -- return value of the hook provided by the library
+-- |   -- return the value of the hook provided by the library
+-- |   pure { foo: "foo" }
 -- |
 -- | Hooks.useLifecycleEffect do
 -- |   unsubscribe <- onEvent.setCallback $ Just \setupSubscription str -> do
@@ -81,21 +82,53 @@ type EventApi m a =
 -- |   pure $ Just do
 -- |     -- unsubscribe to clean up resources
 -- |     unsubscribe
--- |
+-- | ```
+-- | If you don't need to unsubscribe, just ignore the first argument
+-- | in the function passed to `onEvent`:
+-- | ```
 -- | state /\ tState <- useState 0
 -- |
--- | -- If we don't need to unsubscribe, just ignore the argument
 -- | Hooks.captures { state } Hooks.useTickEffect do
--- |   -- notice two things here. First, we're ignoring the
--- |   -- 'unsubscribeCallback' argument by using the underscore (i.e. _)
--- |   -- Second, we're ignoring the returned 'unsubscribe' code by using
--- |   -- `void`.
+-- |   -- Notice two things here:
+-- |   -- 1. we're ignoring the 'unsubscribeCallback' argument
+-- |   --        by using the underscore (i.e. _).
+-- |   -- 2. we're ignoring the returned 'unsubscribe' code by using `void`.
 -- |   void $ onEvent \_ string -> do
 -- |     -- handle the event
 -- |     Hooks.raise ("Event occurred: " <> string)
 -- |
 -- |   pure Nothing -- no need to unsubscribe here
 -- | ```
+-- |
+-- | ## Beware Infinite Loops
+-- |
+-- | If you use this hook, it's possible for you to create an infinite loop.
+-- | This will occur if a handler runs code that causes another event to
+-- | be emitted. Consider this workflow:
+-- |
+-- | 1. Event A is emitted
+-- | 2. During A's handler, Action X is called
+-- | 3. During Action X's computation, Event A is emitted.
+-- | 4. An infinite loop occurs (go to Step 2)
+-- |
+-- | Here's an example in code:
+-- | ```
+-- | library <- useLibrary
+-- | useLifecycleEffect do
+-- |   library.onNewInteger \newInt -> do
+-- |     library.setIntValue (newInt + 1)
+-- | ```
+-- | Consider also cases where the chain is longer and
+-- | some computations run only when certain conditions are true:
+-- |
+-- | 1. Event A is emitted
+-- | 2. During A's handler, Action X is called
+-- | 3. During Action X's computation, Event B is emitted.
+-- | 4. During B's handler, Action Y is called
+-- | 5. During Action Y's computation, Event C is emitted but only if State M is equal to 4.
+-- | 6. During C's handler, Action Z is called
+-- | 7. During Action Z's computation, Event A is emitted.
+-- | 8. Infinite loop may occur (depends on State M)
 useEvent :: forall m a hooks
    . MonadEffect m
   => Hooked m hooks (UseEvent m a hooks)
