@@ -20,12 +20,16 @@ newtype UseGet a hooks = UseGet (UseEffect (UseRef a hooks))
 
 derive instance newtypeUseGet :: Newtype (UseGet a hooks) _
 
--- | Use this hook when you wish to refer to a state value or the input value
--- | in a `useLifecycleEffect`/`useTickEffect`'s
--- | cleanup/finalizer/unsubscribe computation. If you don't use this hook
--- | in such situations, you may refer to what the value used to be
--- | (a stale value), not what the value is now. Here's what would happen
--- | if we did not use this hook:
+-- | Use this hook when you wish to ensure that your reference to a state
+-- | value or the component's input is not "stale" or outdated. Usually, this
+-- | happens in when you define a computation in one "Hook evaluation cycle,"
+-- | but you do not run the computation until a future "Hook evaluation cycle."
+-- | This typically occurs when running a `useLifecycleEffect`/`useTickEffect`'s
+-- | cleanup/finalizer/unsubscribe computation.
+-- |
+-- | Let's see an example of an effect's finalizer referring to a stale value
+-- | in code. If you don't use `useGet` in this situation, you will refer to
+-- | what the value used to be (a stale value), not what the value is now:
 -- | ```
 -- | myComponent :: forall q i o m. MonadAff m => H.Component HH.HTML q i o m
 -- | myComponent = Hooks.component \_ _ -> Hooks.do
