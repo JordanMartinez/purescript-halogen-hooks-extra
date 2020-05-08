@@ -20,7 +20,7 @@ import Halogen.Hooks (HookM, Hook, UseRef)
 import Halogen.Hooks as Hooks
 
 newtype UseDebouncer a hooks =
-  UseDebouncer (UseRef (Maybe a) (UseRef (Maybe Debouncer) hooks))
+  UseDebouncer (UseRef { debounce :: Maybe Debouncer, val :: Maybe a } hooks)
 
 derive instance newtypeUseDebouncer :: Newtype (UseDebouncer a hooks) _
 
@@ -61,14 +61,12 @@ useDebouncer
   -> (a -> HookM m Unit)
   -> Hook m (UseDebouncer a) (a -> HookM m Unit)
 useDebouncer ms fn = Hooks.wrap Hooks.do
-  _ /\ debounceRef <- Hooks.useRef Nothing
-  _ /\ valRef <- Hooks.useRef Nothing
+  _ /\ ref <- Hooks.useRef { debounce: Nothing, val: Nothing }
 
   let
     debounceFn x = do
       debouncer <- liftEffect do
-        Ref.write (Just x) valRef
-        Ref.read debounceRef
+        map (_.debounce) $ Ref.modify (\s -> s { val = Just x }) ref
 
       case debouncer of
         Nothing -> do
@@ -80,12 +78,11 @@ useDebouncer ms fn = Hooks.wrap Hooks.do
           _ <- Hooks.fork do
             _ <- liftAff $ AVar.take var
             val <- liftEffect do
-              Ref.write Nothing debounceRef
-              Ref.read valRef
+              map (_.val) $ Ref.modify (\s -> s { debounce = Nothing}) ref
             traverse_ fn val
 
           liftEffect do
-            Ref.write (Just { var, fiber }) debounceRef
+            Ref.modify_ (\s -> s { debounce = Just { var, fiber }}) ref
 
         Just db -> do
           let var = db.var
@@ -95,6 +92,6 @@ useDebouncer ms fn = Hooks.wrap Hooks.do
               delay ms
               AVar.put unit var
 
-          liftEffect $ Ref.write (Just { var, fiber }) debounceRef
+          liftEffect $ Ref.modify_ (\s -> s { debounce = Just { var, fiber }}) ref
 
   Hooks.pure debounceFn
