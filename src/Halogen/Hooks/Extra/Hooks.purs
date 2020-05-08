@@ -7,4 +7,4 @@ module Halogen.Hooks.Extra.Hooks
 
 import Halogen.Hooks.Extra.Hooks.UseDebouncer (UseDebouncer, useDebouncer)
 import Halogen.Hooks.Extra.Hooks.UseGet (UseGet, useGet)
-import Halogen.Hooks.Extra.Hooks.UseEvent (UseEvent, useEvent)
+import Halogen.Hooks.Extra.Hooks.UseEvent (UseEvent, UseEventApi, useEvent)
