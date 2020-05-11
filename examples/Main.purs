@@ -6,6 +6,7 @@ import Data.Maybe (Maybe(..))
 import Data.Symbol (SProxy(..))
 import Effect (Effect)
 import Examples.UseEvent.UseLTEffectHandler as UseEvent
+import Examples.UseThrottle.MouseMoveHandler as UseThrottle
 import Halogen.Aff (awaitBody, runHalogenAff)
 import Halogen.HTML as HH
 import Halogen.Hooks as Hooks
@@ -16,13 +17,13 @@ main = runHalogenAff do
   body <- awaitBody
   runUI topComponent unit body
   where
-    topComponent = Hooks.component \_ -> Hooks.pure render
+    topComponent = Hooks.component \_ _ -> Hooks.pure render
 
     render =
       HH.div_
         [ renderExample "useEvent" _useEvent UseEvent.component
+        --, renderExample "useThrottle" _useThrottle UseThrottle.component
         ]
-
 
     renderExample labelName sproxy comp =
       HH.div_
@@ -32,3 +33,4 @@ main = runHalogenAff do
 
     -- sproxies
     _useEvent = SProxy :: SProxy "useEvent"
+    _useThrottle = SProxy :: SProxy "useThrottle"
