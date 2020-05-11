@@ -17,9 +17,9 @@ import Halogen.Hooks as Hooks
 import Halogen.Hooks.Extra.Hooks.UseEvent (useEvent)
 
 component :: H.Component HH.HTML (Const Void) Unit Unit Aff
-component = Hooks.component \_ -> Hooks.do
+component = Hooks.component \_ _ -> Hooks.do
   changes <- useEvent
-  state /\ tState <- useState 0
+  state /\ modifyState <- useState 0
 
   -- Here, we set a callback that will handle the events emitted.
   -- We chose to use the `useTickEffect` version, but we could
@@ -65,7 +65,7 @@ component = Hooks.component \_ -> Hooks.do
       , HH.br_
       , HH.button
         [ HE.onClick \_ -> Just do
-          Hooks.modify_ tState \s -> s + 1
+          modifyState \s -> s + 1
         ]
         [ HH.text "Click to change the state value, which will unsubscribe \
                   \prior handler and resubscribe using new handler"
