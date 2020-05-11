@@ -21,14 +21,14 @@ main = runHalogenAff do
 
     render =
       HH.div_
-        [ renderExample "useEvent" _useEvent UseEvent.component
-        --, renderExample "useThrottle" _useThrottle UseThrottle.component
+        [ renderExample "useEvent" $ HH.slot _useEvent unit UseEvent.component unit (const Nothing)
+        , renderExample "useThrottle" $ HH.slot _useThrottle unit UseThrottle.component unit (const Nothing)
         ]
 
-    renderExample labelName sproxy comp =
+    renderExample label html =
       HH.div_
-        [ HH.h2_ [ HH.text labelName ]
-        , HH.slot sproxy unit comp unit (const Nothing)
+        [ HH.h2_ [ HH.text label ]
+        , html
         ]
 
     -- sproxies
