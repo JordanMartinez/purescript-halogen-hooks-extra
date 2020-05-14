@@ -4,6 +4,7 @@ module Halogen.Hooks.Extra.Hooks
   ) where
 
 import Halogen.Hooks.Extra.Hooks.UseDebouncer (UseDebouncer, useDebouncer) as Exports
-import Halogen.Hooks.Extra.Hooks.UseGet (UseGet, useGet) as Exports
 import Halogen.Hooks.Extra.Hooks.UseEvent (UseEvent, UseEventApi, useEvent) as Exports
+import Halogen.Hooks.Extra.Hooks.UseGet (UseGet, useGet) as Exports
+import Halogen.Hooks.Extra.Hooks.UseStateFn (UseStateFn, useStateFn, useModifyState) as Exports
 import Halogen.Hooks.Extra.Hooks.UseThrottle (UseThrottle, useThrottle) as Exports
