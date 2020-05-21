@@ -1,0 +1,22 @@
+{
+  "name": "purescript-halogen-hooks-extra",
+  "license": [
+      "MIT"
+  ],
+  "repository": {
+      "type": "git",
+      "url": "https://github.com/JordanMartinez/purescript-halogen-hooks-extra"
+  },
+  "ignore": [
+      "**/.*",
+      "node_modules",
+      "bower_components",
+      "output",
+      "examples",
+      "dist"
+  ],
+  "dependencies": {
+      "purescript-halogen": "^v5.0.0-rc.9",
+      "purescript-hooks": "https://github.com/thomashoneyman/purescript-halogen-hooks.git#v0.4.1"
+  }
+}
