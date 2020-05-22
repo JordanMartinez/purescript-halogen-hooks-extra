@@ -10,15 +10,15 @@ import Effect.Aff (Aff)
 import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Events as HE
-import Halogen.Hooks (useState)
 import Halogen.Hooks as Hooks
+import Halogen.Hooks.Extra.Hooks (useStateFn)
 import Halogen.Hooks.Extra.Hooks.UseThrottle (useThrottle)
 import Web.UIEvent.MouseEvent as MouseEvent
 
 component :: H.Component HH.HTML (Const Void) Unit Unit Aff
 component = Hooks.component \_ _ -> Hooks.do
-  position /\ modifyPosition <- useState { x: zero, y: zero }
-  throttling /\ modifyThrottling <- useState false
+  position /\ modifyPosition <- useStateFn Hooks.modify_ { x: zero, y: zero }
+  throttling /\ modifyThrottling <- useStateFn Hooks.modify_ false
 
   let
     mouseMoveHandler e = modifyPosition (_ { x = MouseEvent.pageX e, y = MouseEvent.pageY e})
