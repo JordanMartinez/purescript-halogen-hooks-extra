@@ -5,8 +5,8 @@ import Prelude
 import Data.Maybe (Maybe(..))
 import Data.Symbol (SProxy(..))
 import Effect (Effect)
-import Examples.UseEvent.UseLTEffectHandler as UseEvent
-import Examples.UseThrottle.MouseMoveHandler as UseThrottle
+import Examples.UseEvent as UseEvent
+import Examples.UseThrottle as UseThrottle
 import Halogen.Aff (awaitBody, runHalogenAff)
 import Halogen.HTML as HH
 import Halogen.Hooks as Hooks

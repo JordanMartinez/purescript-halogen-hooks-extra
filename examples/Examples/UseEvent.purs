@@ -1,4 +1,4 @@
-module Examples.UseEvent.UseLTEffectHandler where
+module Examples.UseEvent where
 
 import Prelude
 
