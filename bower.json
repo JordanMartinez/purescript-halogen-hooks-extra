@@ -1,22 +1,43 @@
 {
   "name": "purescript-halogen-hooks-extra",
-  "license": [
-      "MIT"
+  "homepage": "https://github.com/JordanMartinez/purescript-halogen-hooks-extra",
+  "authors": [
+    "Jordan Martinez <jordanalex.martinez@gmail.com>"
   ],
+  "description": "Provides useful Halogen Hooks and other utilities commonly used in hooks (e.g. actions).",
+  "keywords": [
+    "halogen",
+    "halogen-hooks"
+  ],
+  "license": "MIT",
+  "private": true,
   "repository": {
-      "type": "git",
-      "url": "https://github.com/JordanMartinez/purescript-halogen-hooks-extra"
-  },
+     "type": "git",
+     "url": "https://github.com/JordanMartinez/purescript-halogen-hooks-extra.git"
+   }
   "ignore": [
-      "**/.*",
-      "node_modules",
-      "bower_components",
-      "output",
-      "examples",
-      "dist"
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "spago",
+    "generated-docs",
+    "examples",
+    "dist",
+    ".pulp-cache"
   ],
   "dependencies": {
-      "purescript-halogen": "^v5.0.0-rc.9",
-      "purescript-hooks": "https://github.com/thomashoneyman/purescript-halogen-hooks.git#v0.4.1"
+    "purescript-aff": "^5.0.0",
+    "purescript-avar": "^3.0.0",
+    "purescript-catenable-lists": "^5.0.0",
+    "purescript-console": "^4.1.0",
+    "purescript-coroutines": "^5.0.0",
+    "purescript-dom-indexed": "^7.0.0",
+    "purescript-foreign-object": "^2.0.1",
+    "purescript-fork": "^4.0.0",
+    "purescript-free": "^5.0.0",
+    "purescript-freeap": "^5.0.0",
+    "purescript-halogen-vdom": "^6.1.0",
+    "purescript-halogen": "^v5.0.0-rc.9",
+    "purescript-hooks": "https://github.com/thomashoneyman/purescript-halogen-hooks.git#v0.4.1"
   }
 }
