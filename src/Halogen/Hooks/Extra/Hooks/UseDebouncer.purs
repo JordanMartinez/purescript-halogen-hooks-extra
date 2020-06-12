@@ -42,9 +42,9 @@ type Debouncer =
 -- |
 -- | ```
 -- | myComponent = Hooks.component \_ -> Hooks.do
--- |   label /\ tLabel <- useState ""
+-- |   label /\ labelId <- useState ""
 -- |   makeNewSearchFor <- useDebouncer (Milliseconds 500.0) \finalValue -> do
--- |      Hooks.put tLabel finalValue
+-- |      Hooks.put labelId finalValue
 -- |
 -- |   Hooks.pure
 -- |    HH.div_

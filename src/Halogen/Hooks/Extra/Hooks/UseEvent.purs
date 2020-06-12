@@ -86,7 +86,7 @@ type UseEventApi m a =
 -- | If you don't need to unsubscribe, just ignore the first argument
 -- | in the function passed to `onEvent`:
 -- | ```
--- | state /\ tState <- useState 0
+-- | state /\ stateId <- useState 0
 -- |
 -- | Hooks.captures { state } Hooks.useTickEffect do
 -- |   -- Notice two things here:

@@ -22,7 +22,7 @@ newtype UseThrottle a hooks =
 
 derive instance newtypeUseThrottle :: Newtype (UseThrottle a hooks) _
 
--- | Limits the amount of times an action is performed per time period. 
+-- | Limits the amount of times an action is performed per time period.
 -- | Use this hook when you need to run the same action repeatedly with a different input,
 -- | but you are concerned about performance or resource usage.
 -- |
@@ -33,17 +33,19 @@ derive instance newtypeUseThrottle :: Newtype (UseThrottle a hooks) _
 -- |
 -- | ```
 -- | myComponent = Hooks.component \_ _ -> Hooks.do
--- |   position /\ modifyPosition <- useState { x: zero, y: zero }
--- |   throttledMouseMove <- useThrottle (Milliseconds 100.0) (\e -> modifyPosition (_ { x = MouseEvent.pageX e, y = MouseEvent.pageY e}))
--- | 
+-- |   position /\ positionId <- useState { x: zero, y: zero }
+-- |   throttledMouseMove <- useThrottle (Milliseconds 100.0) \e -> do
+-- |     Hooks.modify_ positionId (_ { x = MouseEvent.pageX e, y = MouseEvent.pageY e}))
+-- |
 -- |   Hooks.pure $
--- |     HH.div 
--- |       [ HE.onMouseMove $ Just <<< throttledMouseMove ] 
--- |       [ HH.label_ [ HH.text $ "Mouse position: (" <> show position.x <> ", " <> show position.y <> ")" ]
--- |     ]
+-- |     HH.div
+-- |       [ HE.onMouseMove $ Just <<< throttledMouseMove ]
+-- |       [ HH.label_
+-- |         [ HH.text $ "Mouse position: (" <>
+-- |              show position.x <> ", " <> show position.y <> ")"
+-- |         ]
+-- |       ]
 -- | ```
-
-
 useThrottle
   :: forall m a
    . MonadAff m

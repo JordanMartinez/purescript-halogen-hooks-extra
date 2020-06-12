@@ -33,7 +33,8 @@ derive instance newtypeUseGet :: Newtype (UseGet a hooks) _
 -- | ```
 -- | myComponent :: forall q i o m. MonadAff m => H.Component HH.HTML q i o m
 -- | myComponent = Hooks.component \_ _ -> Hooks.do
--- |   thisIsFive_NotSix /\ modifyState <- Hooks.useState 5
+-- |   thisIsFive_NotSix /\ stateId <- Hooks.useState 5
+-- |   let modifyState = Hooks.modify_ stateId
 -- |
 -- |   Hooks.captures {} Hooks.useTickEffect do
 -- |     -- The `thisIsFive_NotSix` state reference is currently `5` and
@@ -58,7 +59,8 @@ derive instance newtypeUseGet :: Newtype (UseGet a hooks) _
 -- | ```
 -- | myComponent :: forall q i o m. MonadAff m => H.Component HH.HTML q i o m
 -- | myComponent = Hooks.component \_ _ -> Hooks.do
--- |   thisIsFive_NotSix /\ modifyState <- Hooks.useState 5
+-- |   thisIsFive_NotSix /\ stateId <- Hooks.useState 5
+-- |   let modifyState = Hooks.modify_ stateId
 -- |
 -- |   -- This returns a function to get the latest state/input value.
 -- |   getState <- useGet thisIsFive_NotSix
