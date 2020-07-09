@@ -33,12 +33,14 @@ derive instance newtypeUseStateFn :: Newtype (UseStateFn a hooks) _
 -- | For example, rather than writing:
 -- | ```
 -- | count /\ countIdx <- Hooks.useState 42
+-- | -- ...
 -- | Hooks.modify_ countIdx (add 1)
 -- | ```
 -- |
 -- | You can write:
 -- | ```
 -- | count /\ modifyCount <- useStateFn Hooks.modify_ 42
+-- | -- ...
 -- | modifyCount (add 1)
 -- | ```
 -- |
@@ -61,12 +63,14 @@ useStateFn fn initial = Hooks.wrap Hooks.do
 -- | Example:
 -- | ```
 -- | count /\ modifyCount <- useModifyState_ 42
+-- | -- ...
 -- | modifyCount (add 1)
 -- | ```
 -- |
 -- | Instead of:
 -- | ```
 -- | count /\ countIdx <- Hooks.useState 42
+-- | -- ...
 -- | Hooks.modify_ countIdx (add 1)
 -- | ```
 -- |
@@ -88,13 +92,15 @@ useModifyState_ =
 -- | Example:
 -- | ```
 -- | count /\ modifyCount <- useModifyState 42
--- | modifyCount (add 1)
+-- | -- ...
+-- | newCount <- modifyCount (add 1)
 -- | ```
 -- |
 -- | Instead of:
 -- | ```
 -- | count /\ countIdx <- Hooks.useState 42
--- | Hooks.modify countIdx (add 1)
+-- | -- ...
+-- | newCount <- Hooks.modify countIdx (add 1)
 -- | ```
 -- |
 -- | Shorthand for:
@@ -115,12 +121,14 @@ useModifyState =
 -- | Example:
 -- | ```
 -- | count /\ putCount <- usePutState 42
+-- | -- ...
 -- | putCount 0
 -- | ```
 -- |
 -- | Instead of:
 -- | ```
 -- | count /\ countIdx <- Hooks.useState 42
+-- | -- ...
 -- | Hooks.put countIdx 0
 -- | ```
 -- |
