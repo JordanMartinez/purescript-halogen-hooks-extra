@@ -8,7 +8,7 @@ Provides useful Halogen Hooks and other utilities commonly used in hooks (e.g. a
 - `useThrottle` - run an action with the next value after ignoring new values for a specified amount of time (e.g. handle 1 scroll event every 300 ms).
 - `useEvent` - run a callback whenever a new value is pushed (e.g. allow a library to publish events within it to end-users of the library).
 - Convenience function `useStateFn` and shorthand `useModifyState_` / `useModifyState` / `usePutState`. These provide a `MonadState` update function rather than a stateID. This is similar to the `react-basic-hooks` API, where `useState` in that framework behaves like `useModifyState_` here. Use these functions if you only need a single way to update state and prefer more concise code.
-- `useGet` - ensure you aren't getting/using "stale" values (e.g. running finalizers in `Effect`ful code or running asynchronous code).
+- `useGet` - Produce a `get` function for a value by saving the value in a mutable reference. This function behaves like the `Hooks.get` function for reading the current state. Most commonly used to get a mutable reference to component `input` so you can read the most up-to-date input when in a callback or effect cleanup.
 
 ## Actions
 
