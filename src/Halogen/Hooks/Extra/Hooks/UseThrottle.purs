@@ -8,19 +8,24 @@ import Prelude
 
 import Data.Foldable (traverse_)
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Milliseconds, delay)
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
-import Halogen.Hooks (HookM, Hook, UseRef)
+import Halogen.Hooks (class HookEquals, class HookNewtype, type (<>), Hook, HookM, UseEffect, UseRef)
 import Halogen.Hooks as Hooks
 
-newtype UseThrottle a hooks =
-  UseThrottle (UseRef { running :: Boolean, val :: Maybe a } hooks)
+foreign import data UseThrottle :: Type -> Hooks.HookType
 
-derive instance newtypeUseThrottle :: Newtype (UseThrottle a hooks) _
+type UseThrottle' a =
+  UseRef { running :: Boolean, val :: Maybe a }
+    <> UseEffect
+    <> Hooks.Pure
+
+instance newtypeUseThrottle
+  :: HookEquals (UseThrottle' a) h
+  => HookNewtype (UseThrottle a) h
 
 -- | Limits the amount of times an action is performed per time period.
 -- | Use this hook when you need to run the same action repeatedly with a different input,
@@ -52,22 +57,25 @@ useThrottle
   => Milliseconds
   -> (a -> HookM m Unit)
   -> Hook m (UseThrottle a) (a -> HookM m Unit)
-useThrottle ms fn = Hooks.wrap Hooks.do
-  _ /\ ref <- Hooks.useRef { running: false, val: Nothing }
+useThrottle ms fn = Hooks.wrap hook
+  where
+  hook :: Hook m (UseThrottle' a) (a -> HookM m Unit)
+  hook = Hooks.do
+    _ /\ ref <- Hooks.useRef { running: false, val: Nothing }
 
-  let
-    throttleFn x = do
-      running <- liftEffect $
-        map (_.running) $ Ref.modify (_ { val = Just x }) ref
+    let
+      throttleFn x = do
+        running <- liftEffect $
+          map (_.running) $ Ref.modify (_ { val = Just x }) ref
 
-      unless running do
-        void $ Hooks.fork do
-          liftAff $ delay ms
-          val <- liftEffect $
-            map (_.val) $ Ref.modify (_ { running = false}) ref
-          traverse_ fn val
+        unless running do
+          void $ Hooks.fork do
+            liftAff $ delay ms
+            val <- liftEffect $
+              map (_.val) $ Ref.modify (_ { running = false}) ref
+            traverse_ fn val
 
-        liftEffect $
-          Ref.modify_ (_ { running = true }) ref
+          liftEffect $
+            Ref.modify_ (_ { running = true }) ref
 
-  Hooks.pure throttleFn
+    Hooks.pure throttleFn

@@ -8,7 +8,6 @@ import Prelude
 
 import Data.Foldable (traverse_)
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
 import Data.Tuple.Nested ((/\))
 import Effect.Aff (Fiber, Milliseconds, delay, error, forkAff, killFiber)
 import Effect.Aff.AVar (AVar)
@@ -16,13 +15,19 @@ import Effect.Aff.AVar as AVar
 import Effect.Aff.Class (class MonadAff, liftAff)
 import Effect.Class (liftEffect)
 import Effect.Ref as Ref
-import Halogen.Hooks (HookM, Hook, UseRef)
+import Halogen.Hooks (class HookEquals, class HookNewtype, type (<>), Hook, HookM, UseEffect, UseRef)
 import Halogen.Hooks as Hooks
 
-newtype UseDebouncer a hooks =
-  UseDebouncer (UseRef { debounce :: Maybe Debouncer, val :: Maybe a } hooks)
+foreign import data UseDebouncer :: Type -> Hooks.HookType
 
-derive instance newtypeUseDebouncer :: Newtype (UseDebouncer a hooks) _
+type UseDebouncer' a =
+  UseRef { debounce :: Maybe Debouncer, val :: Maybe a }
+    <> UseEffect
+    <> Hooks.Pure
+
+instance newtypeUseDebouncer
+  :: HookEquals (UseDebouncer' a) h
+  => HookNewtype (UseDebouncer a) h
 
 type Debouncer =
   { var :: AVar Unit
@@ -60,38 +65,41 @@ useDebouncer
   => Milliseconds
   -> (a -> HookM m Unit)
   -> Hook m (UseDebouncer a) (a -> HookM m Unit)
-useDebouncer ms fn = Hooks.wrap Hooks.do
-  _ /\ ref <- Hooks.useRef { debounce: Nothing, val: Nothing }
+useDebouncer ms fn = Hooks.wrap hook
+  where
+  hook :: Hook m (UseDebouncer' a) (a -> HookM m Unit)
+  hook = Hooks.do
+    _ /\ ref <- Hooks.useRef { debounce: Nothing, val: Nothing }
 
-  let
-    debounceFn x = do
-      debouncer <- liftEffect do
-        map (_.debounce) $ Ref.modify (\s -> s { val = Just x }) ref
+    let
+      debounceFn x = do
+        debouncer <- liftEffect do
+          map (_.debounce) $ Ref.modify (\s -> s { val = Just x }) ref
 
-      case debouncer of
-        Nothing -> do
-          var <- liftAff AVar.empty
-          fiber <- liftAff $ forkAff do
-            delay ms
-            AVar.put unit var
-
-          _ <- Hooks.fork do
-            _ <- liftAff $ AVar.take var
-            val <- liftEffect do
-              map (_.val) $ Ref.modify (\s -> s { debounce = Nothing}) ref
-            traverse_ fn val
-
-          liftEffect do
-            Ref.modify_ (\s -> s { debounce = Just { var, fiber }}) ref
-
-        Just db -> do
-          let var = db.var
-          fiber <- liftAff do
-            killFiber (error "Time's up!") db.fiber
-            forkAff do
+        case debouncer of
+          Nothing -> do
+            var <- liftAff AVar.empty
+            fiber <- liftAff $ forkAff do
               delay ms
               AVar.put unit var
 
-          liftEffect $ Ref.modify_ (\s -> s { debounce = Just { var, fiber }}) ref
+            _ <- Hooks.fork do
+              _ <- liftAff $ AVar.take var
+              val <- liftEffect do
+                map (_.val) $ Ref.modify (\s -> s { debounce = Nothing}) ref
+              traverse_ fn val
 
-  Hooks.pure debounceFn
+            liftEffect do
+              Ref.modify_ (\s -> s { debounce = Just { var, fiber }}) ref
+
+          Just db -> do
+            let var = db.var
+            fiber <- liftAff do
+              killFiber (error "Time's up!") db.fiber
+              forkAff do
+                delay ms
+                AVar.put unit var
+
+            liftEffect $ Ref.modify_ (\s -> s { debounce = Just { var, fiber }}) ref
+
+    Hooks.pure debounceFn

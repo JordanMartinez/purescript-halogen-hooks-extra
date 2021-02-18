@@ -9,16 +9,22 @@ module Halogen.Hooks.Extra.Hooks.UseGet
 import Prelude
 
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
 import Data.Tuple.Nested ((/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Ref as Ref
-import Halogen.Hooks (Hook, HookM, UseEffect, UseRef)
+import Halogen.Hooks (class HookEquals, class HookNewtype, type (<>), Hook, HookM, UseEffect, UseRef)
 import Halogen.Hooks as Hooks
 
-newtype UseGet a hooks = UseGet (UseEffect (UseRef a hooks))
+foreign import data UseGet :: Type -> Hooks.HookType
 
-derive instance newtypeUseGet :: Newtype (UseGet a hooks) _
+type UseGet' a =
+  UseRef a
+    <> UseEffect
+    <> Hooks.Pure
+
+instance newtypeUseGet
+  :: HookEquals (UseGet' a) h
+  => HookNewtype (UseGet a) h
 
 -- | Use this hook when you wish to ensure that your reference to a state
 -- | value or the component's input is not "stale" or outdated. Usually, this
@@ -81,11 +87,14 @@ useGet
    . MonadEffect m
   => a
   -> Hook m (UseGet a) (HookM m a)
-useGet latest = Hooks.wrap Hooks.do
-  _ /\ ref <- Hooks.useRef latest
+useGet latest = Hooks.wrap hook
+  where
+  hook :: Hook m (UseGet' a) (HookM m a)
+  hook = Hooks.do
+    _ /\ ref <- Hooks.useRef latest
 
-  Hooks.captures {} Hooks.useTickEffect do
-    liftEffect $ Ref.write latest ref
-    pure Nothing
+    Hooks.captures {} Hooks.useTickEffect do
+      liftEffect $ Ref.write latest ref
+      pure Nothing
 
-  Hooks.pure (liftEffect $ Ref.read ref)
+    Hooks.pure (liftEffect $ Ref.read ref)

@@ -11,14 +11,20 @@ module Halogen.Hooks.Extra.Hooks.UseStateFn
 
 import Prelude
 
-import Data.Newtype (class Newtype)
 import Data.Tuple (Tuple)
-import Halogen.Hooks (Hook, HookM, StateId, UseState, useState)
+import Halogen.Hooks (class HookEquals, class HookNewtype, Hook, HookM, StateId, UseState)
 import Halogen.Hooks as Hooks
 
-newtype UseStateFn a hooks = UseStateFn (UseState a hooks)
+foreign import data UseStateFn :: Type -> Hooks.HookType
 
-derive instance newtypeUseStateFn :: Newtype (UseStateFn a hooks) _
+type UseStateFn' a =
+  UseState a
+    -- | <> UseEffect
+    -- | <> Hooks.Pure
+
+instance newtypeUseStateFn
+  :: HookEquals (UseStateFn' a) h
+  => HookNewtype (UseStateFn a) h
 
 -- | `useStateFn` allows you to choose a `MonadState` function to pair with
 -- | `Hooks.useState` so you don't have to keep re-typing these functions in
@@ -54,8 +60,10 @@ useStateFn
    . (StateId a -> b)
   -> a
   -> Hook m (UseStateFn a) (Tuple a b)
-useStateFn fn initial = Hooks.wrap Hooks.do
-  map fn <$> useState initial
+useStateFn fn initial = Hooks.wrap hook
+  where
+  hook :: Hook m (UseStateFn' a) (Tuple a b)
+  hook = map fn <$> Hooks.useState initial
 
 -- | Just like `useState`, but provides a convenience function for updating
 -- | state, rather than a state index to pass to `Hooks.modify_`.
