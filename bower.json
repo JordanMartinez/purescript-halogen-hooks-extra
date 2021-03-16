@@ -26,18 +26,6 @@
     ".pulp-cache"
   ],
   "dependencies": {
-    "purescript-aff": "^5.0.0",
-    "purescript-avar": "^3.0.0",
-    "purescript-catenable-lists": "^5.0.0",
-    "purescript-console": "^4.1.0",
-    "purescript-coroutines": "^5.0.0",
-    "purescript-dom-indexed": "^7.0.0",
-    "purescript-foreign-object": "^2.0.1",
-    "purescript-fork": "^4.0.0",
-    "purescript-free": "^5.0.0",
-    "purescript-freeap": "^5.0.0",
-    "purescript-halogen-vdom": "^6.1.0",
-    "purescript-halogen": "^5.0.0",
-    "purescript-halogen-hooks": "v0.4.1"
+    "purescript-halogen-hooks": "v0.5.0"
   }
 }
