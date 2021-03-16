@@ -26,6 +26,7 @@
     ".pulp-cache"
   ],
   "dependencies": {
-    "purescript-halogen-hooks": "v0.5.0"
+    "purescript-halogen": "^6.0.0",
+    "purescript-halogen-hooks": "https://github.com/thomashoneyman/purescript-halogen-hooks.git#v0.5.0"
   }
 }
