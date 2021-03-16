@@ -2,8 +2,7 @@ module Examples.Main where
 
 import Prelude
 
-import Data.Maybe (Maybe(..))
-import Data.Symbol (SProxy(..))
+import Type.Proxy (Proxy(..))
 import Effect (Effect)
 import Examples.UseEvent as UseEvent
 import Examples.UseThrottle as UseThrottle
@@ -21,8 +20,8 @@ main = runHalogenAff do
 
     render =
       HH.div_
-        [ renderExample "useEvent" $ HH.slot _useEvent unit UseEvent.component unit (const Nothing)
-        , renderExample "useThrottle" $ HH.slot _useThrottle unit UseThrottle.component unit (const Nothing)
+        [ renderExample "useEvent" $ HH.slot_ _useEvent unit UseEvent.component unit
+        , renderExample "useThrottle" $ HH.slot_ _useThrottle unit UseThrottle.component unit
         ]
 
     renderExample label html =
@@ -32,5 +31,5 @@ main = runHalogenAff do
         ]
 
     -- sproxies
-    _useEvent = SProxy :: SProxy "useEvent"
-    _useThrottle = SProxy :: SProxy "useThrottle"
+    _useEvent = Proxy :: Proxy "useEvent"
+    _useThrottle = Proxy :: Proxy "useThrottle"
