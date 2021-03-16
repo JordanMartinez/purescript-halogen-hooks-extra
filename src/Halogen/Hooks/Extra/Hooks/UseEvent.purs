@@ -8,28 +8,26 @@ module Halogen.Hooks.Extra.Hooks.UseEvent
 import Prelude
 
 import Data.Maybe (Maybe(..))
-import Data.Newtype (class Newtype)
 import Data.Traversable (for_)
 import Data.Tuple.Nested ((/\))
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Ref as Ref
-import Halogen.Hooks (HookM, Hooked, UseRef, useRef)
+import Halogen.Hooks (Hook, HookM, UseRef, useRef, type (<>), class HookNewtype)
 import Halogen.Hooks as Hooks
 
-newtype UseEvent m a hooks =
-  UseEvent
-    (UseRef
-      { valueCB
-        :: Maybe (  ((HookM m (HookM m Unit)) -> HookM m Unit)
-                 -> a -- pushed value
-                 -> HookM m Unit -- code that gets run
-                 )
-      , unsubscribeCB
-        :: Maybe (HookM m Unit)
-      }
-    hooks)
-
-derive instance newtypeUseEvent :: Newtype (UseEvent m a hooks) _
+type UseEvent' m a =
+  UseRef
+    { valueCB
+      :: Maybe (  ((HookM m (HookM m Unit)) -> HookM m Unit)
+               -> a -- pushed value
+               -> HookM m Unit -- code that gets run
+               )
+    , unsubscribeCB
+      :: Maybe (HookM m Unit)
+    }
+  <> Hooks.Pure
+foreign import data UseEvent :: (Type -> Type) -> Type -> Hooks.HookType
+instance hooknewtypeUseEvent :: HookNewtype (UseEvent m a) (UseEvent' m a)
 
 -- | For proper usage, see the docs for `useEvent`.
 type UseEventApi m a =
@@ -129,50 +127,52 @@ type UseEventApi m a =
 -- | 6. During C's handler, Action Z is called
 -- | 7. During Action Z's computation, Event A is emitted.
 -- | 8. Infinite loop may occur (depends on State M)
-useEvent :: forall m a hooks
+useEvent :: forall m a
    . MonadEffect m
-  => Hooked m hooks (UseEvent m a hooks)
-      (UseEventApi m a)
-useEvent = Hooks.wrap Hooks.do
-  -- valueCB = the callback to run when a new event is pushed
-  -- unsubscribeCB = callback to run when unsubscribing
-  _ /\ ref <- useRef { valueCB: Nothing, unsubscribeCB: Nothing }
+  => Hook m (UseEvent m a) (UseEventApi m a)
+useEvent = Hooks.wrap hook
+  where
+  hook :: Hook m (UseEvent' m a) (UseEventApi m a)
+  hook = Hooks.do
+    -- valueCB = the callback to run when a new event is pushed
+    -- unsubscribeCB = callback to run when unsubscribing
+    _ /\ ref <- useRef { valueCB: Nothing, unsubscribeCB: Nothing }
 
-  let
-    push :: a -> HookM m Unit
-    push value = do
-      mbCallback <- liftEffect $ map (_.valueCB) $ Ref.read ref
-      for_ mbCallback \callback -> do
-        callback setupUnsubscribeCallback value
+    let
+      push :: a -> HookM m Unit
+      push value = do
+        mbCallback <- liftEffect $ map (_.valueCB) $ Ref.read ref
+        for_ mbCallback \callback -> do
+          callback setupUnsubscribeCallback value
 
-    setupUnsubscribeCallback :: (HookM m (HookM m Unit)) -> HookM m Unit
-    setupUnsubscribeCallback subscribeAndReturnUnsubscribeCallback = do
-      mbUnsubscribe <- liftEffect $ map (_.unsubscribeCB) $ Ref.read ref
-      case mbUnsubscribe of
-        Nothing -> do
-          unsubscribeCode <- subscribeAndReturnUnsubscribeCallback
-          liftEffect $ Ref.modify_ (_ { unsubscribeCB = Just unsubscribeCode}) ref
-        _ -> do
-          -- no need to store unsubscriber because
-          -- 1. it's already been stored
-          -- 2. no one has subscribed to this yet
-          pure unit
-
-    setCallback :: Maybe
-             (  ((HookM m (HookM m Unit)) -> HookM m Unit)
-             -> a -- pushed value
-             -> HookM m Unit -- code that gets run
-             )
-             -> HookM m (HookM m Unit)
-    setCallback callback = do
-      liftEffect $ Ref.modify_ (_ { valueCB = callback }) ref
-      pure do
+      setupUnsubscribeCallback :: (HookM m (HookM m Unit)) -> HookM m Unit
+      setupUnsubscribeCallback subscribeAndReturnUnsubscribeCallback = do
         mbUnsubscribe <- liftEffect $ map (_.unsubscribeCB) $ Ref.read ref
         case mbUnsubscribe of
-          Just unsubscribeCode -> do
-            unsubscribeCode
-            liftEffect $ Ref.modify_ (_ { unsubscribeCB = Nothing }) ref
+          Nothing -> do
+            unsubscribeCode <- subscribeAndReturnUnsubscribeCallback
+            liftEffect $ Ref.modify_ (_ { unsubscribeCB = Just unsubscribeCode}) ref
           _ -> do
+            -- no need to store unsubscriber because
+            -- 1. it's already been stored
+            -- 2. no one has subscribed to this yet
             pure unit
 
-  Hooks.pure { push, setCallback }
+      setCallback :: Maybe
+               (  ((HookM m (HookM m Unit)) -> HookM m Unit)
+               -> a -- pushed value
+               -> HookM m Unit -- code that gets run
+               )
+               -> HookM m (HookM m Unit)
+      setCallback callback = do
+        liftEffect $ Ref.modify_ (_ { valueCB = callback }) ref
+        pure do
+          mbUnsubscribe <- liftEffect $ map (_.unsubscribeCB) $ Ref.read ref
+          case mbUnsubscribe of
+            Just unsubscribeCode -> do
+              unsubscribeCode
+              liftEffect $ Ref.modify_ (_ { unsubscribeCB = Nothing }) ref
+            _ -> do
+              pure unit
+
+    Hooks.pure { push, setCallback }
