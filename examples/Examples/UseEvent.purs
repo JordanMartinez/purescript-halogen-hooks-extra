@@ -16,7 +16,7 @@ import Halogen.Hooks (useState, useTickEffect)
 import Halogen.Hooks as Hooks
 import Halogen.Hooks.Extra.Hooks.UseEvent (useEvent)
 
-component :: H.Component HH.HTML (Const Void) Unit Unit Aff
+component :: H.Component (Const Void) Unit Unit Aff
 component = Hooks.component \_ _ -> Hooks.do
   changes <- useEvent
   state /\ stateId <- useState 0
@@ -56,7 +56,7 @@ component = Hooks.component \_ _ -> Hooks.do
   Hooks.pure $
     HH.div_
       [ HH.button
-        [ HE.onClick \_ -> Just do
+        [ HE.onClick \_ -> do
           i <- liftEffect $ randomInt 0 10
           changes.push i
         ]
@@ -64,7 +64,7 @@ component = Hooks.component \_ _ -> Hooks.do
         ]
       , HH.br_
       , HH.button
-        [ HE.onClick \_ -> Just do
+        [ HE.onClick \_ -> do
           Hooks.modify_ stateId \s -> s + 1
         ]
         [ HH.text "Click to change the state value, which will unsubscribe \
