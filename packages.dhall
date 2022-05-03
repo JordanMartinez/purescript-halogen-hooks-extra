@@ -1,4 +1,37 @@
 let upstream =
-      https://github.com/purescript/package-sets/releases/download/psc-0.14.0-20210315/packages.dhall sha256:b94bb40844a78703075733d646da563a1dd42a884541841f8d708c08084bbf7e
+      https://github.com/purescript/package-sets/releases/download/psc-0.15.0-20220502/packages.dhall
+        sha256:38d347aeba9fe6359c208abe87a5cecf1ffb14294f11ad19664ae35c59b6e29a
 
-in  upstream
+in  upstream //
+    { halogen-hooks =
+        { repo = "https://github.com/thomashoneyman/purescript-halogen-hooks.git"
+        , version = "v0.6.0"
+        , dependencies =
+            [ "aff"
+            , "arrays"
+            , "bifunctors"
+            , "effect"
+            , "exceptions"
+            , "foldable-traversable"
+            , "foreign-object"
+            , "free"
+            , "freeap"
+            , "halogen"
+            , "halogen-subscriptions"
+            , "maybe"
+            , "newtype"
+            , "ordered-collections"
+            , "parallel"
+            , "partial"
+            , "prelude"
+            , "refs"
+            , "tailrec"
+            , "transformers"
+            , "tuples"
+            , "unsafe-coerce"
+            , "unsafe-reference"
+            , "web-dom"
+            , "web-html"
+            ]
+        }
+    }
